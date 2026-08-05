@@ -62,6 +62,11 @@ annotation processor in `annotations/`, from the component classes in
 
 ## 3. Fork scope: desktop only
 
+**"Desktop" means Windows, Linux and macOS — all three are first-class supported targets.**
+Windows in particular must work; a feature or mitigation that only functions on POSIX is not
+acceptable. Where a platform API differs (notably file permissions — see `docs/SECURITY.md` T8),
+implement the real per-platform path rather than degrading Windows to a weaker guarantee.
+
 **Mobile (Android / iOS) support is intentionally dropped in this fork.**
 
 - Do **not** fix Android or iOS build breakage. If `android/` or `ios/` fails to compile, that is

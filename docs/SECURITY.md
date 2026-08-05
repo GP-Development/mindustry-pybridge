@@ -33,10 +33,10 @@ Phase numbers refer to `docs/ROADMAP.md`.
 | T5 | Multiplayer fairness abuse via unthrottled control | Planned | 6 |
 | T6 | Arbitrary code execution through the command surface | Structural | all |
 | T7 | Weak or predictable session token | Planned | 2 |
-| T8 | Token file readable by other users (Windows) | Open | 2 |
+| T8 | Token file readable by other users (Windows) | Planned | 2 |
 | T9 | Unbounded allocation from a hostile length prefix | Planned | 2 |
 | T10 | Cross-thread data race on game state | Planned | 3 |
-| T11 | Fog-of-war / information disclosure via telemetry | Open | 3, 6 |
+| T11 | Fog-of-war / information disclosure via telemetry | Planned (SP-only), Open (MP) | 3, 6 |
 | T12 | Main-thread stall via blocking I/O | Planned | 3 |
 | T13 | Token disclosure through logs or error messages | Planned | 2 |
 | T14 | Stale token reuse across sessions | Planned | 2 |
@@ -244,19 +244,36 @@ token and authenticate.
 **Mitigation.** On POSIX (Linux, macOS) the file is created with owner-only permissions (`0600`)
 via `Files.setPosixFilePermissions`, and the containing directory is owner-only too.
 
-**Open — known gap.** Java's cross-platform permission story on **Windows** is weaker: POSIX
-permissions are unavailable, and `File.setReadable(false, false)` / `setReadable(true, true)` is
-best-effort and does not reliably produce an owner-only ACL. Proper handling requires
-`AclFileAttributeView`, which is verbose and easy to get subtly wrong.
+**Windows.** Windows is a **first-class supported target** for this fork, so a mitigation that
+only works on POSIX is not acceptable. POSIX permissions are unavailable there, and
+`File.setReadable(false, false)` / `setReadable(true, true)` is best-effort and does not reliably
+produce an owner-only ACL.
 
-**Decision pending at the Phase 2 gate.** Options: (a) implement an `AclFileAttributeView` path
-for Windows; (b) document the weaker guarantee and accept it for single-user desktops; (c) refuse
-to start the listener if owner-only permissions cannot be established. Option (c) fails closed and
-is the security-maximal choice; option (b) is the least work and is defensible for a
-non-distributed single-user project. **Not yet decided — must not ship unresolved.**
+**Decision (resolved).** Implement the real thing on both platforms, then **verify**, then **fail
+closed only if verification fails**:
 
-Whichever is chosen: the file must be created with restrictive permissions **atomically at
-creation**, not created world-readable and then chmod'ed, which leaves an exploitable window.
+1. **POSIX** — create with `PosixFilePermissions` `rw-------` (`0600`), directory `rwx------`
+   (`0700`).
+2. **Windows** — use `AclFileAttributeView` to write an explicit DACL granting **only the file
+   owner** read/write, with inheritance disabled so a permissive parent-directory ACL cannot
+   widen it.
+3. **Verify after writing** — re-read the permissions/ACL and confirm no principal other than the
+   owner has access. Do not trust that the set call succeeded.
+4. **Fail closed if verification fails** — do not start the listener, do not write a token, and
+   surface a clear message explaining why. A bridge that cannot protect its token must not run.
+
+This satisfies both constraints: the feature genuinely works on Windows, and it still refuses to
+run in the rare case where it cannot secure the file (e.g. a FAT32/exFAT data directory, which has
+no ACL support at all).
+
+**Creation must be atomic.** The file is created with restrictive permissions **as part of
+creation** — `Files.createFile` with the attributes supplied up front, or created in a
+newly-created owner-only directory — never created world-readable and then tightened, which leaves
+an exploitable race window in which another process can read the token.
+
+**Status.** Planned for Phase 2; the design decision itself is settled and should not be
+relitigated. Verification-then-fail-closed is the load-bearing part — an unverified `setReadable`
+call is exactly the kind of mitigation that appears to work and does not.
 
 ---
 
@@ -314,10 +331,17 @@ permitted to observe**, not to what the client process happens to hold in memory
 respect team visibility and fog-of-war state when assembling snapshots, and default to omitting
 anything whose visibility is uncertain.
 
-**Open.** The exact filtering rules depend on how fog is represented and must be settled at the
-Phase 3 gate, then re-reviewed at Phase 6 alongside the other multiplayer fairness questions
-(T5). In single-player this threat is void — the player may already see everything — so an interim
-option is to permit telemetry only in single-player until the filtering is implemented.
+**Decision (interim, adopted).** **Phase 3 telemetry is permitted in single-player only.** In
+single-player the threat is void — the player may already see everything — so this lets Phase 3
+ship its threading work without forcing the fog-of-war question early. The check is a hard gate:
+if the session is multiplayer, telemetry subscriptions are refused with `not_permitted`, rather
+than being silently filtered to nothing.
+
+**Still open for Phase 6.** Before telemetry is permitted in multiplayer, snapshot assembly must
+respect team visibility and fog state, defaulting to omitting anything whose visibility is
+uncertain. The exact rules depend on how fog is represented and must be settled at the Phase 6
+gate, alongside the other fairness questions (T5). Lifting the single-player restriction without
+implementing that filtering would ship a wallhack.
 
 ---
 
@@ -425,3 +449,4 @@ Each phase gate in `docs/ROADMAP.md` requires a pass over this file:
 | Date | Change |
 |---|---|
 | 2026-08-05 | Initial threat model. Seeded T1–T5 from design discussion; added T6–T16 during authoring. T8 and T11 flagged as unresolved and requiring a decision before their phase gates. |
+| 2026-08-05 | T8 resolved: Windows is a first-class target, so implement `AclFileAttributeView` on Windows and POSIX `0600` elsewhere, verify the result, and fail closed only if verification fails. T11 resolved for Phase 3: telemetry is single-player only until fog-of-war filtering is implemented; multiplayer remains open for Phase 6. |
