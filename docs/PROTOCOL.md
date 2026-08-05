@@ -295,6 +295,10 @@ session, `subscribe` is refused with `not_permitted`.
 
 Requires `"write"` in `permissions`, which requires a control-capable bridge block.
 
+Control is **single-player only** until the Phase 6 server opt-in flag and throttle tuning exist
+(T5) — the same hard gate telemetry has under T11. In a multiplayer session a `command` is refused
+with `not_permitted`.
+
 ```json
 → { "type": "command", "id": 10, "block": 4821, "action": "unit_move",
     "args": { "unit": 99312, "x": 412.0, "y": 883.5 } }
@@ -355,7 +359,7 @@ badly here because by the time a timer could fire, the work is already executing
 |---|---|---|
 | `protocol_version` | Unsupported `protocol` | Yes |
 | `malformed` | Not valid JSON, or not an object | Yes |
-| `unauthenticated` | Message sent before a successful `hello` | Yes |
+| `unauthenticated` | Message sent before a successful `hello` — see note below | Yes |
 | `auth_failed` | Token rejected — deliberately unspecific (T13) | Yes |
 | `unknown_type` | `type` not in the allowlist (T6) | No |
 | `invalid_argument` | Failed validation: type, range, bounds, ownership | No |
@@ -369,6 +373,14 @@ traces, or internal identifiers (T13). Clients must branch on `code`, never on `
 
 **Framing violations produce no error frame at all** — the connection is closed. A malformed frame
 means the stream is no longer trustworthy, and replying would make the server a probing oracle.
+
+**`unauthenticated` should be unreachable, and that is intentional.** §4 requires `hello` as frame
+1 and closes any other first frame *silently*, so a correct implementation has no path that reaches
+a pre-authentication message of another type. The code is retained as the **default case** of the
+pre-handshake state machine: if a future change ever does let a frame through unauthenticated, that
+is a bug, and it should fail closed with a generic code rather than fall through to a handler. If
+it is ever observed on the wire, treat it as a defect report rather than expected behaviour.
+(Recorded at security checkpoint 0.)
 
 ---
 
@@ -441,5 +453,6 @@ Verify every item against the code before the Phase 2 and Phase 3 gates:
 - [ ] No game state read or written on the network thread, including `pong` (T10)
 - [ ] Telemetry snapshots are immutable copies; no live entity references cross threads (T10)
 - [ ] Telemetry refused in multiplayer sessions (T11)
+- [ ] Control commands refused in multiplayer sessions until Phase 6 (T5)
 - [ ] Queues bounded; slow client causes drops, never main-thread blocking (T4, T12)
 - [ ] Per-tick accumulator capped before use (T4)

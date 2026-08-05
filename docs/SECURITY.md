@@ -26,8 +26,8 @@ Phase numbers refer to `docs/ROADMAP.md`.
 
 | ID | Threat | Status | Phase |
 |---|---|---|---|
-| T1 | SSRF / arbitrary outbound connections via a host field | Structural | — |
-| T2 | Malicious webpage reaching the localhost listener | Structural | — |
+| T1 | SSRF / arbitrary outbound connections via a host field | Structural | 2 (verify) |
+| T2 | Malicious webpage reaching the localhost listener | Structural | 2 (verify) |
 | T3 | Rogue local process attaching to the socket | Planned | 2 |
 | T4 | Resource exhaustion via command flooding | Planned | 2–4 |
 | T5 | Multiplayer fairness abuse via unthrottled control | Planned | 6 |
@@ -42,6 +42,11 @@ Phase numbers refer to `docs/ROADMAP.md`.
 | T14 | Stale token reuse across sessions | Planned | 2 |
 | T15 | Connection exhaustion | Planned | 2 |
 | T16 | Impersonation of the listener by a local process | Accepted | 2 |
+
+**"2 (verify)"** means there is no mitigation to *write* — the capability was never built, which is
+what **Structural** means — but Phase 2 is where code first exists that could erode the property,
+so Phase 2's gate must confirm it by reading that code. A structural threat with no owner phase
+degrades into a threat nobody ever checks.
 
 ---
 
@@ -178,11 +183,23 @@ individual command is legitimate.
 - Read and write permissions are **separate levels**; a server may permit telemetry while
   forbidding control.
 
+**Interim gate for Phases 4–5 (added at security checkpoint 0).** The mitigations above are not
+all available when control commands first ship. Phase 4 builds the throttle, the block cost and the
+per-base cap, but the **server-side opt-in flag and the throttle tuning do not exist until Phase
+6** — so between those phases a multiplayer session would expose programmatic control with no
+server consent and no fairness envelope. That is an exposure created in Phase 4 by a mitigation
+scheduled for Phase 6, which the roadmap's checkpoint rule forbids.
+
+Therefore **control commands are refused in multiplayer with `not_permitted` from Phase 4**,
+exactly as telemetry is under T11, and the restriction is lifted only at the Phase 6 gate once the
+server flag and tuning are in place. Like T11's gate this is a hard refusal, not silent filtering.
+
 **Open question for Phase 6.** Whether the throttle should be tuned to "roughly what a skilled
 human could do" or simply "does not break the simulation". These give very different numbers. Not
 yet decided; must be settled at the Phase 6 gate.
 
-**Enforced at.** Phase 4 (throttle, cost, cap) and Phase 6 (server flag, tuning).
+**Enforced at.** Phase 4 (throttle, cost, cap, multiplayer refusal) and Phase 6 (server flag,
+tuning, lifting the refusal).
 
 ---
 
@@ -449,4 +466,5 @@ Each phase gate in `docs/ROADMAP.md` requires a pass over this file:
 | Date | Change |
 |---|---|
 | 2026-08-05 | Initial threat model. Seeded T1–T5 from design discussion; added T6–T16 during authoring. T8 and T11 flagged as unresolved and requiring a decision before their phase gates. |
+| 2026-08-05 | **Security checkpoint 0 passed**, after four fixes. (1) `ROADMAP` said a non-`hello` first frame is rejected with `unauthenticated` while `PROTOCOL` §4 said it is closed silently — resolved in favour of the silent close (an error reply is an oracle). (2) `unauthenticated` was therefore unreachable; retained and documented in `PROTOCOL` §8 as a fail-closed default case rather than deleted. (3) T1 and T2 had no owner phase despite both naming Phase 2 code that must uphold them — given "2 (verify)". (4) T5's exposure preceded its mitigation: Phase 4 granted control commands with no multiplayer gate while the server opt-in flag and throttle tuning land in Phase 6, so control is now refused in multiplayer with `not_permitted` from Phase 4, lifted only at the Phase 6 gate. Also noted: the port is user-configurable while the address is not, which is consistent with §4.1 only while the setting stays an integer port and never becomes a `host:port` string. |
 | 2026-08-05 | T8 resolved: Windows is a first-class target, so implement `AclFileAttributeView` on Windows and POSIX `0600` elsewhere, verify the result, and fail closed only if verification fails. T11 resolved for Phase 3: telemetry is single-player only until fog-of-war filtering is implemented; multiplayer remains open for Phase 6. |
