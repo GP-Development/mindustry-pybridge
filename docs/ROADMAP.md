@@ -26,7 +26,13 @@ Threat IDs (`T1`–`T16`) refer to `docs/SECURITY.md`. Invariant references (`§
 - [x] Author `docs/ROADMAP.md` — this file
 - [ ] **Confirm a clean vanilla build on JDK 17** — `./gradlew desktop:dist`
 - [ ] Confirm the game launches and a save loads
-- [ ] Add `upstream` remote (`https://github.com/Anuken/Mindustry.git`) and record the merge base
+- [x] Add `upstream` remote (`https://github.com/Anuken/Mindustry.git`) and record the merge base
+
+> **Merge base with upstream:** `fc0113c887804b6c78881e8b1c2da394ff588213`
+> ("Automatic bundle update", 2026-08-05). Every commit in this fork after that point is ours; at
+> the time of recording, upstream `master` was 1 commit ahead
+> (`8718814bff94bd4e6e2141b09c72985f51ac9eff`). Re-derive at any time with
+> `git merge-base HEAD upstream/master`.
 
 > **Build not yet verified in this workspace.** The development container has **JDK 21**, and this
 > project requires **JDK 17** (`build.gradle:197-198`); other versions do not work. The vanilla
@@ -35,9 +41,28 @@ Threat IDs (`T1`–`T16`) refer to `docs/SECURITY.md`. Invariant references (`§
 
 **Security checkpoint 0**
 
-- [ ] `CLAUDE.md` §4 invariants are stated unambiguously and are not contradicted by any doc
-- [ ] Every threat in `docs/SECURITY.md` has an owner phase
-- [ ] No open threat is scheduled later than the phase that first creates its exposure
+- [x] `CLAUDE.md` §4 invariants are stated unambiguously and are not contradicted by any doc
+- [x] Every threat in `docs/SECURITY.md` has an owner phase
+- [x] No open threat is scheduled later than the phase that first creates its exposure
+
+> **Checkpoint 0 review, 2026-08-05.** Passed after four fixes; see the `docs/SECURITY.md` change
+> log for the full record.
+>
+> 1. **Handshake contradiction.** This file said a non-`hello` first frame is rejected with
+>    `unauthenticated`, while `docs/PROTOCOL.md` §4 (and the next line of this file) said it is
+>    closed silently. Resolved in favour of the silent close — an error reply is an oracle.
+> 2. **`unauthenticated` was unreachable.** With `hello` mandatory as frame 1, no path could emit
+>    the code. Documented in `PROTOCOL.md` §8 as a defensive default-case rather than deleted.
+> 3. **T1/T2 had no owner phase** (`—` in the summary table) even though both bodies name Phase 2
+>    code that must uphold them. Given a verification phase, so "structural" cannot come to mean
+>    "nobody checks".
+> 4. **T5 exposure preceded its mitigation.** Phase 4 granted control commands with no multiplayer
+>    gate, while T5's fairness mitigations land in Phase 6 — check 3 above failed. Phase 4 now
+>    carries the same hard multiplayer gate Phase 3 applies to telemetry.
+>
+> Note that the port *is* user-configurable (`PROTOCOL.md` §1) while the address is not. That is
+> consistent with §4.1, but Phase 2 must keep it so: the setting must be an **integer port only**,
+> never a `host:port` string, which is the obvious way a host field gets reintroduced by accident.
 
 ---
 
@@ -102,7 +127,8 @@ Off by default. This is the phase that establishes every security primitive.*
 
 ### Handshake (T3, T13)
 
-- [ ] Require `hello` as frame 1; reject every other type with `unauthenticated`
+- [ ] Require `hello` as frame 1; any other first frame is closed **silently** — no error reply at
+      all (`docs/PROTOCOL.md` §4). Replying would make the listener a probing oracle
 - [ ] Compare tokens with `MessageDigest.isEqual` (constant-time)
 - [ ] `auth_failed` carries **no diagnostic detail**; send no banner before the client speaks
 - [ ] Answer only `protocol_version` and `malformed` before authentication
@@ -175,6 +201,10 @@ careful review of any phase.*
 *Write access, gated behind the higher-cost block. Everything until now was preparation for
 containing this.*
 
+- [ ] **Refuse control commands in multiplayer** with `not_permitted` — the same hard gate Phase 3
+      applies to telemetry, for the same reason: T5's fairness mitigations (server opt-in flag,
+      throttle tuning) do not exist until Phase 6, so control must not be reachable in a
+      multiplayer session before then. Lifted only at the Phase 6 gate
 - [ ] Define the **closed action enumeration**; dispatch via explicit `switch` — no reflection,
       no name-to-method lookup (T6, §4.4)
 - [ ] Require `"write"` in `permissions`, granted only by a control-capable block
@@ -193,6 +223,7 @@ containing this.*
 - [ ] Commands targeting another team's units/buildings → rejected
 - [ ] Destroying the authorising block mid-stream → subsequent commands rejected
 - [ ] Unpowered block → commands rejected
+- [ ] Multiplayer session → commands refused with `not_permitted`
 - [ ] Save/load with commands in flight → no corruption
 
 **Security checkpoint 4**
