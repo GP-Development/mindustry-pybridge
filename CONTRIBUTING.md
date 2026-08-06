@@ -1,6 +1,6 @@
 # Contributing
 
-This is for code contributions. For translations, see [TRANSLATING](TRANSLATING.md).
+<!-- FORK: pybridge - removed link to TRANSLATING.md; translation/localization workflow docs were removed as upstream-community-process content not applicable to this private fork -->
 
 ## Basic Guidelines
 
@@ -11,20 +11,16 @@ Specifically, IntelliJ IDEA. Download the (free) Community Edition of it [here](
 Do not submit something without at least running the game to see if it compiles.  
 If you are submitting a new block, make sure it has a name and description, and that it works correctly in-game. If you are changing existing block mechanics, test them out first.
 
+<!-- FORK: pybridge - removed upstream Discord contact instructions; for this fork, raise large changes with the maintainer directly, see CLAUDE.md §9 -->
 ### Do not make large changes before discussing them first.
-If you are interested in adding a large mechanic/feature or changing large amounts of code, first contact me (Anuken) via [Discord](https://discord.gg/mindustry) - either via PM or by posting in the `#pulls` channel.
-For most changes, this should not be necessary. I just want to know if you're doing something big, so I can offer advice and/or make sure you're not wasting your time on it.
+For most changes, this should not be necessary; discussion is only needed for large mechanics/features or large-scale code changes.
 
 ### Do not make formatting or "cleanup" PRs.
 Yes, there are occurrences of trailing spaces, extra newlines, empty indents, and other tiny errors. No, I don't want to merge, view, or get notified by your 1-line PR fixing it. If you're implementing a PR with modification of *actual code*, feel free to fix formatting in the general vicinity of your changes, but please don't waste everyone's time with pointless changes.
 
 I **especially** do not want to see PRs that apply any kind of automated analysis to the source code to "optimize" anything - my IDE can do that already. If the PR doesn't actually change anything useful, I'm not going to review or merge it.
 
-### Do not make AI "contributions".
-
-If I see a PR with significant amounts of code that's obviously written by AI, I will reject your PR, and you will be blocked. Don't waste my time with slop.
-
-Asking AI questions, and using that information to help you write code? Fine. Using it to actually write code? No.
+<!-- FORK: pybridge - removed upstream's "no AI contributions" PR policy; not applicable to this fork, see CLAUDE.md -->
 
 ## Style Guidelines
 
@@ -81,5 +77,4 @@ If something needs to be encapsulated in the future, IntelliJ can handle it with
 ### Do not create methods unless necessary.
 Unless a block of code is very large or used in more than 1-2 places, don't split it up into a separate method. Making unnecessary methods only creates confusion, and may slightly decrease performance.  
 
-## Other Notes
-If you would like your name to appear in the game's credits, add it to the [list of contributors](https://github.com/Anuken/Mindustry/blob/master/core/assets/contributors) as part of your PR.
+<!-- FORK: pybridge - removed "Other Notes" section pointing to upstream's contributor credits list; not applicable to this private fork -->
