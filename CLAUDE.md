@@ -331,10 +331,21 @@ For a multi-line region:
 // FORK: pybridge — end
 ```
 
-Before any upstream merge, `grep -rn "FORK: pybridge" --include=*.java .` gives the complete list
-of touched upstream sites. **Keep these edits as small as possible** — ideally a single call into
-our package, with the real logic living in `mindustry/pybridge/`. The smaller the footprint in
-upstream files, the cheaper every future merge is.
+Not every upstream file we touch is Java, and not every comment syntax is `//`. Upstream's English
+bundle (`core/assets/bundles/bundle.properties`) needs a block's name and description, and a
+`.properties` file treats `#` as its comment character — `//` there would parse as a key. Mark such
+a file in its own comment syntax, keeping the same `FORK: pybridge` text:
+
+```properties
+#FORK: pybridge - <one-line reason>
+```
+
+Before any upstream merge, `grep -rn "FORK: pybridge" .` gives the complete list of touched
+upstream sites. **Do not restrict it to `--include=*.java`** — that filter silently hides the
+bundle marker and any future non-Java one, which is exactly the kind of omission a merge check
+exists to prevent. **Keep these edits as small as possible** — ideally a single call into our
+package, with the real logic living in `mindustry/pybridge/`. The smaller the footprint in upstream
+files, the cheaper every future merge is.
 
 ### Documentation
 
@@ -371,8 +382,8 @@ Merge into a **scratch branch first**, never straight into the working branch.
 
 ### After merging, check all of these
 
-1. **Conflicts in marked regions** — `grep -rn "FORK: pybridge" --include=*.java .` and confirm
-   every marker survived and still makes sense in its new surroundings.
+1. **Conflicts in marked regions** — `grep -rn "FORK: pybridge" .` (unfiltered — see §6) and
+   confirm every marker survived and still makes sense in its new surroundings.
 2. **Block registration still intact** — our block is still registered in `Blocks.load()` and its
    content ID has not collided with a newly added upstream block.
 3. **Clean build** — `./gradlew desktop:dist` succeeds on JDK 17.

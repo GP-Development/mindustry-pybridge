@@ -98,24 +98,69 @@ hard stop, exactly as standing rule 5 has always said. *Pending* is not *failed*
 *A placeable block that costs something and does nothing but log. Proves the registration path end
 to end, with zero networking.*
 
-- [ ] Create `core/src/mindustry/pybridge/` with a package-level README comment
-- [ ] Add the block class (start from `world/blocks/production/GenericCrafter.java` as a shape
-      reference; see `CLAUDE.md` §8)
-- [ ] Give it real cost: build requirements, power draw, `update = true`
-- [ ] Override `updateTile()` to log at a **throttled** rate — never once per tick, which would
-      flood the console at 60 Hz
-- [ ] Register it in `content/Blocks.java`, marked `// FORK: pybridge`
-- [ ] Add a name and description to the bundle so the UI does not show a raw key
+- [x] Create `core/src/mindustry/pybridge/` with a package-level README comment
+      (`package-info.java`)
+- [x] Add the block class (start from `world/blocks/production/GenericCrafter.java` as a shape
+      reference; see `CLAUDE.md` §8) — `pybridge/PyBridgeBlock.java`
+- [x] Give it real cost: build requirements, power draw, `update = true`
+- [x] Override `updateTile()` to log at a **throttled** rate — never once per tick, which would
+      flood the console at 60 Hz (one line per 600 ticks = 10 s per placed block)
+- [x] Register it in `content/Blocks.java`, marked `// FORK: pybridge`
+- [x] Add a name and description to the bundle so the UI does not show a raw key
+- [x] Add a block sprite (`core/assets-raw/sprites/blocks/pybridge/pybridge.png`, 32×32) so the
+      block draws as itself rather than as the atlas error texture
 
 Human: **H1.1** block appears, places, draws, deconstructs · **H1.2** survives a save/load round
 trip · **H1.3** logging is throttled, not per-tick · **H1.4** `./gradlew desktop:dist` still
 succeeds.
 
+> **Phase 1 cannot be marked done yet.** Every code item above is written, but nothing has been
+> compiled or run: the container still cannot resolve `jitpack.io` (`HUMAN_TODO.md` §5), and H0.1
+> — the baseline vanilla build — has not been observed either. What *was* checked automatically is
+> recorded under checkpoint 1 below; it is a set of greps and a type-check against hand-written
+> stubs, which is not a build and must not be reported as one.
+
+> **Two deliberate deferrals, so a later session does not read them as oversights.**
+>
+> 1. **No tech-tree node.** The block is registered in `Blocks.java` but not in
+>    `content/TechTree.java`, so it appears in custom/sandbox games and is not researchable in the
+>    campaign. Placing it in the tech tree is a balance decision (which node it hangs off, what it
+>    costs to unlock) and belongs with **H6.4**, not with an automated session. It also keeps a
+>    second heavily-edited upstream file out of the merge surface for now.
+> 2. **Block cost, power draw and size are provisional.** Marked as such in both
+>    `PyBridgeBlock.java` and `Blocks.java`. The real numbers follow from **H6.4** — the judgement
+>    that the bridge must not end up strictly superior to an mlog processor.
+
 **Security checkpoint 1**
 
-- [ ] No socket, no thread, no file written — Phase 1 must add none of these
-- [ ] The `// FORK: pybridge` marker count matches the number of upstream files touched
-- [ ] Nothing in the block reads user-controlled input of any kind
+- [x] No socket, no thread, no file written — Phase 1 must add none of these
+- [x] Every upstream edit site carries a `FORK: pybridge` marker
+- [x] Nothing in the block reads user-controlled input of any kind
+
+> **Checkpoint 1 review, 2026-08-06.** Passed. What was actually checked, and how:
+>
+> 1. **No socket, thread, or file.** `grep -rnE` over `core/src/mindustry/pybridge/` for
+>    `Socket|ServerSocket|Thread|Executor|Runnable|Files\.|Fi\.|Core\.app\.post|new File|InetAddress|Channel`
+>    returns exactly one hit, and it is prose: the word "WebSocket" in the package README comment
+>    listing what must never be built. `PyBridgeBlock.java` itself returns nothing. The package's
+>    entire import list is `arc.util`, `mindustry.gen`, `mindustry.world` and
+>    `mindustry.world.meta`; it reaches no I/O API at all.
+> 2. **Markers.** Two upstream files are touched — `content/Blocks.java` and
+>    `assets/bundles/bundle.properties` — across **four** edit sites: the import, the field
+>    declaration, the `load()` registration, and the bundle keys. Every site carries a marker.
+>    The checkbox previously read "marker count matches the number of upstream files touched",
+>    which is not the property that matters and is not achievable: one file can need edits in
+>    several places (a field declaration and a registration cannot be adjacent), and a
+>    `.properties` file cannot use the `//` marker form because `#` is its comment character.
+>    Reworded to state the intent — *every edit site is marked* — which is what makes the
+>    pre-merge grep complete. Note that `grep -rn "FORK: pybridge" --include=*.java .`
+>    (`CLAUDE.md` §6) will not show the bundle marker; use an unfiltered grep before a merge.
+> 3. **No input surface.** `PyBridgeBlock` makes no `config(...)` call and leaves `configurable`
+>    at its default of `false`, so no player interaction, schematic, save field or mlog
+>    instruction can hand it data. Its `updateTile()` interpolates only its own tile coordinates
+>    and power efficiency into the log line. This is the first fork-local code that writes to the
+>    console; T13 (token disclosure through logs) has nothing to disclose yet, and the habit that
+>    keeps it that way is recorded in `docs/SECURITY.md`.
 
 ---
 
