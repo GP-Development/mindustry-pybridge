@@ -437,22 +437,28 @@ client closes
 
 ## 11. Implementation checklist
 
-Verify every item against the code before the Phase 2 and Phase 3 gates:
+Verify every item against the code before the Phase 2 and Phase 3 gates.
+
+Reading the code settles most of these. Four of them are claims about *runtime behaviour* and are
+settled by observation instead — the connection file's real permissions, the absence of an
+allocation on a hostile length prefix, the token's absence from a real console session, and the
+multiplayer refusals. Those are queued in `HUMAN_TODO.md` (H2.2–H2.4, H2.7, H2.11, H3.5, H4.6) and
+are noted below where they apply.
 
 - [ ] Bind address is a hard-coded loopback constant, not read from config (T1)
 - [ ] No HTTP/WebSocket handling exists anywhere in the bridge (T2)
-- [ ] Frame length validated **before** allocation, pre-handshake included (T9)
+- [ ] Frame length validated **before** allocation, pre-handshake included (T9) — observed: H2.7
 - [ ] `MAX_FRAME_BYTES` enforced on both read and write paths
 - [ ] Token from `SecureRandom`, 256 bits (T7)
 - [ ] Token compared with `MessageDigest.isEqual` (T3)
-- [ ] Connection file created owner-only atomically, **verified**, fail-closed (T8)
-- [ ] Token absent from every log statement and error `message` (T13)
+- [ ] Connection file created owner-only atomically, **verified**, fail-closed (T8) — observed: H2.2, H2.3, H2.4
+- [ ] Token absent from every log statement and error `message` (T13) — observed: H2.11
 - [ ] `auth_failed` carries no diagnostic detail (T13)
 - [ ] 5-second handshake timeout and connection cap enforced (T15)
 - [ ] Dispatch is an explicit `switch` over known types — no reflection (T6)
 - [ ] No game state read or written on the network thread, including `pong` (T10)
 - [ ] Telemetry snapshots are immutable copies; no live entity references cross threads (T10)
-- [ ] Telemetry refused in multiplayer sessions (T11)
-- [ ] Control commands refused in multiplayer sessions until Phase 6 (T5)
+- [ ] Telemetry refused in multiplayer sessions (T11) — observed: H3.5
+- [ ] Control commands refused in multiplayer sessions until Phase 6 (T5) — observed: H4.6
 - [ ] Queues bounded; slow client causes drops, never main-thread blocking (T4, T12)
-- [ ] Per-tick accumulator capped before use (T4)
+- [ ] Per-tick accumulator capped before use (T4) — observed: H4.1, H4.8

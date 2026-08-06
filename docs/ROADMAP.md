@@ -8,9 +8,30 @@ checkpoints are not ceremony: they are the points at which `docs/SECURITY.md` is
 code that actually exists.
 
 Threat IDs (`T1`–`T16`) refer to `docs/SECURITY.md`. Invariant references (`§4.1` etc.) refer to
-`CLAUDE.md`.
+`CLAUDE.md`. `H`-prefixed IDs (`H2.3`) refer to `HUMAN_TODO.md`.
 
 **Legend:** `[ ]` not started · `[~]` in progress · `[x]` done
+
+---
+
+## How this file relates to `HUMAN_TODO.md`
+
+Checkboxes in this file are things an automated session can do and tick: writing code, writing
+docs, greps, code reads. Anything that needs a real machine — a JDK 17 build, a running game, a
+second operating system, a multiplayer match, a balance judgement — lives in **`HUMAN_TODO.md`**
+and is referenced from here as **“Human: H2.3”** rather than duplicated. One checkbox, one owner;
+two files can never disagree about whether something was verified.
+
+**A pending human item does not stop development.** Work continues into the next phase while
+`HUMAN_TODO.md` items sit unticked. What a pending item withholds is narrower and non-negotiable:
+
+- the phase **cannot be marked done** here, and
+- no threat may move to **Mitigated** in `docs/SECURITY.md` on the strength of it, and
+- a `GATE`-tagged item additionally means the feature stays **off by default and unadvertised**
+  until it passes (which costs nothing — it is off by default anyway, §4.3).
+
+A human item that has been run and **failed** is different in kind: that is a real defect and a
+hard stop, exactly as standing rule 5 has always said. *Pending* is not *failed*.
 
 ---
 
@@ -24,9 +45,10 @@ Threat IDs (`T1`–`T16`) refer to `docs/SECURITY.md`. Invariant references (`§
 - [x] Author `docs/SECURITY.md` — running threat model, seeded T1–T16
 - [x] Author `docs/PROTOCOL.md` — protocol v1 designed on paper before implementation
 - [x] Author `docs/ROADMAP.md` — this file
-- [ ] **Confirm a clean vanilla build on JDK 17** — `./gradlew desktop:dist`
-- [ ] Confirm the game launches and a save loads
 - [x] Add `upstream` remote (`https://github.com/Anuken/Mindustry.git`) and record the merge base
+- [x] Author `HUMAN_TODO.md` — the human verification queue, and the rule that a pending item
+      there does not block development
+- Human: **H0.1** clean vanilla build on JDK 17 · **H0.2** game launches and a save loads
 
 > **Merge base with upstream:** `fc0113c887804b6c78881e8b1c2da394ff588213`
 > ("Automatic bundle update", 2026-08-05). Every commit in this fork after that point is ours; at
@@ -34,10 +56,15 @@ Threat IDs (`T1`–`T16`) refer to `docs/SECURITY.md`. Invariant references (`§
 > (`8718814bff94bd4e6e2141b09c72985f51ac9eff`). Re-derive at any time with
 > `git merge-base HEAD upstream/master`.
 
-> **Build not yet verified in this workspace.** The development container has **JDK 21**, and this
-> project requires **JDK 17** (`build.gradle:197-198`); other versions do not work. The vanilla
-> build has therefore *not* been run here. It must be confirmed on a JDK 17 machine before Phase 1
-> starts — Phase 1 is meaningless if the baseline was already broken.
+> **Build not yet verified anywhere.** JDK 17 *can* be installed in the development container
+> (verified 2026-08-06), but dependency resolution fails there: the engine dependency (`Arc`) is
+> published on `jitpack.io`, and that host plus `dl.google.com` are refused by the environment's
+> network policy. No compile has been run. `HUMAN_TODO.md` §5 records the exact state and how to
+> lift it.
+>
+> H0.1 therefore stands. It does **not** hold up Phase 1 development — but Phase 1 cannot be
+> marked done until the baseline build has actually been observed to work, because Phase 1 is
+> meaningless if the baseline was already broken.
 
 **Security checkpoint 0**
 
@@ -79,9 +106,10 @@ to end, with zero networking.*
       flood the console at 60 Hz
 - [ ] Register it in `content/Blocks.java`, marked `// FORK: pybridge`
 - [ ] Add a name and description to the bundle so the UI does not show a raw key
-- [ ] Confirm the block appears in the build menu, places, draws, and can be deconstructed
-- [ ] Confirm it survives a **save/load round trip**
-- [ ] Confirm `./gradlew desktop:dist` still succeeds
+
+Human: **H1.1** block appears, places, draws, deconstructs · **H1.2** survives a save/load round
+trip · **H1.3** logging is throttled, not per-tick · **H1.4** `./gradlew desktop:dist` still
+succeeds.
 
 **Security checkpoint 1**
 
@@ -100,7 +128,8 @@ Off by default. This is the phase that establishes every security primitive.*
 
 - [ ] Add a setting, **default off** (§4.3). No listener, no port bound, no file written unless on
 - [ ] Start the listener only on explicit enable; stop it cleanly on disable and on game exit
-- [ ] Verify with `netstat`/`ss` that **no port is bound** in a default installation
+
+Human: **H2.1 `GATE`** confirm by observation that a default installation binds nothing.
 
 ### Connection file (T3, T7, T8, T14)
 
@@ -112,7 +141,10 @@ Off by default. This is the phase that establishes every security primitive.*
 - [ ] **Verify** permissions by re-reading them after creation — do not trust the set call
 - [ ] **Fail closed**: if verification fails, do not start the listener and explain why
 - [ ] Regenerate the token every start; delete the file on clean shutdown
-- [ ] **Test on Windows and on Linux.** A POSIX-only mitigation is not acceptable (`CLAUDE.md` §3)
+
+Human: **H2.2 `GATE`** POSIX permissions · **H2.3 `GATE`** Windows DACL · **H2.4 `GATE`**
+fail-closed on a filesystem with no ACL support. A POSIX-only result does not discharge T8
+(`CLAUDE.md` §3) — H2.2 and H2.3 are both required.
 
 ### Listener and framing (T1, T2, T9, T15)
 
@@ -136,13 +168,13 @@ Off by default. This is the phase that establishes every security primitive.*
 
 ### Verification
 
-- [ ] Throwaway Python script completes the handshake and round-trips a `ping`
-- [ ] Wrong token → generic failure and close
-- [ ] Oversized length prefix → immediate close, **no allocation spike** (watch heap)
-- [ ] Garbage bytes → close, no crash, no stack trace to the client
-- [ ] Connection flood → cap holds, game stays responsive
-- [ ] Game exits cleanly with a client still connected; port released, file removed
-- [ ] `./gradlew desktop:dist` still succeeds
+All of Phase 2's verification needs a running game, so it lives in `HUMAN_TODO.md`:
+
+Human: **H2.5** handshake and `ping` round trip · **H2.6** wrong token refused without detail ·
+**H2.7 `GATE`** oversized length prefix causes no allocation (watch the heap) · **H2.8** garbage
+bytes survivable · **H2.9** connection flood hits the cap · **H2.10** clean shutdown with a client
+attached · **H2.11** token absent from the console in practice · **H1.4** `desktop:dist` still
+succeeds.
 
 **Security checkpoint 2 — the heaviest gate in the plan**
 
@@ -151,10 +183,14 @@ Off by default. This is the phase that establishes every security primitive.*
 - [ ] `grep` for the token in every logging call and error path — must not appear (T13)
 - [ ] Bind address cannot be influenced by config, protocol, or UI (T1)
 - [ ] No HTTP or WebSocket handling exists anywhere in the bridge (T2)
-- [ ] Default install binds nothing — verified by observation, not by reading code (§4.3)
-- [ ] Connection-file permissions verified **on Windows and POSIX** (T8)
-- [ ] Walk `docs/PROTOCOL.md` §11 checklist against real code; update T3/T7/T8/T9/T13/T14/T15 to
+- [ ] Walk `docs/PROTOCOL.md` §11 checklist against real code; update T3/T7/T9/T13/T14/T15 to
       **Mitigated** with file references
+
+Human, and required before this checkpoint passes: **H2.1** (default install binds nothing —
+observed, not read), **H2.2**/**H2.3**/**H2.4** (permissions on both platforms, T8), **H2.7**
+(no allocation on a hostile length prefix, T9), **H2.11** (token never printed, T13). T8 stays
+**Planned** until H2.2, H2.3 and H2.4 have all passed — code review cannot substitute for looking
+at the resulting file's mode bits.
 
 ---
 
@@ -178,12 +214,10 @@ careful review of any phase.*
 
 ### Verification
 
-- [ ] Telemetry matches on-screen reality while the game runs
-- [ ] Client that stops reading → drops, stable memory, game unaffected
-- [ ] Client killed mid-stream → clean teardown, no leaked thread or queue
-- [ ] Subscribe at 1 ms → clamped, not honoured, not an error
-- [ ] Multiplayer session → subscription refused
-- [ ] Long soak (30 min+) with telemetry running → no leak, no frame-time drift
+Human: **H3.1** telemetry matches on-screen reality · **H3.2** a client that stops reading causes
+drops, not stalls · **H3.3** client killed mid-stream tears down cleanly · **H3.4** `interval_ms`
+clamped rather than rejected · **H3.5 `GATE`** telemetry refused in multiplayer · **H3.6** 30-minute
+soak with no leak or frame-time drift.
 
 **Security checkpoint 3**
 
@@ -191,8 +225,13 @@ careful review of any phase.*
       escapes (T10)
 - [ ] Confirm the main thread never blocks on the network thread (T12)
 - [ ] Confirm no telemetry field exposes data the player could not see in single-player (T11)
-- [ ] Confirm the multiplayer gate cannot be bypassed by subscribing before a match starts
+- [ ] Confirm by code reading that the multiplayer gate cannot be bypassed by subscribing before a
+      match starts
 - [ ] Update T10/T11/T12 in `docs/SECURITY.md` with file references
+
+Human, and required before this checkpoint passes: **H3.5** (the multiplayer refusal, including
+the subscribe-before-the-match path, T11) and **H3.2** (a stalled client cannot stall the game,
+T12 — the observed counterpart to the code reading above).
 
 ---
 
@@ -218,13 +257,11 @@ containing this.*
 
 ### Verification
 
-- [ ] Command flood → budget holds, frame time stays flat, commands are not banked and burst
-- [ ] Out-of-bounds, NaN, and infinite coordinates → rejected, no crash
-- [ ] Commands targeting another team's units/buildings → rejected
-- [ ] Destroying the authorising block mid-stream → subsequent commands rejected
-- [ ] Unpowered block → commands rejected
-- [ ] Multiplayer session → commands refused with `not_permitted`
-- [ ] Save/load with commands in flight → no corruption
+Human: **H4.1 `GATE`** command flood stays inside the budget, with no burst after a stall ·
+**H4.2** out-of-bounds/NaN/infinite coordinates rejected · **H4.3** cross-team commands rejected ·
+**H4.4** authorising block destroyed mid-stream · **H4.5** unpowered block cannot command ·
+**H4.6 `GATE`** control refused in multiplayer · **H4.7** save/load with commands in flight ·
+**H4.8** throttle cannot be bypassed by multiple connections or blocks.
 
 **Security checkpoint 4**
 
@@ -233,8 +270,12 @@ containing this.*
 - [ ] Confirm no command path reaches reflection, class loading, the filesystem, processes, or the
       environment (§4.4)
 - [ ] Confirm no command can affect another team, or state outside the simulation
-- [ ] Confirm throttling cannot be bypassed by multiple connections or multiple blocks
-- [ ] Update T4/T6 in `docs/SECURITY.md` with file references
+- [ ] Confirm by code reading that throttling cannot be bypassed by multiple connections or blocks
+- [ ] Update T6 in `docs/SECURITY.md` with file references
+
+Human, and required before this checkpoint passes: **H4.1** and **H4.8** — T4's capped accumulator
+is a claim about behaviour under load, and only a flood test settles it. T4 stays **Planned** until
+both pass.
 
 ---
 
@@ -251,6 +292,9 @@ containing this.*
       independently
 - [ ] README with a minimal working example
 - [ ] Tests that do not require a running game (framing, correlation, error mapping)
+
+*Phase 5 is deliberately shaped so almost all of it is testable with no game running.* Only
+**H5.1** (the README example works against a real game) needs a human.
 
 **Security checkpoint 5**
 
@@ -270,18 +314,23 @@ containing this.*
 - [ ] Default to **omitting** anything whose visibility is uncertain
 - [ ] Lift the single-player-only telemetry restriction **only after** filtering is implemented and
       reviewed
-- [ ] Decide and document the throttle target: "roughly what a skilled human could do" versus
-      "does not break the simulation" — these give very different numbers (T5)
-- [ ] Tune block cost, power draw, and per-base cap so the bridge is not strictly superior to mlog
 - [ ] Document the balance rationale in `docs/SECURITY.md`
+
+Human: **H6.1 `GATE`** server opt-in flag is genuinely off by default · **H6.2 `GATE`** client
+cannot override it · **H6.3 `GATE`** adversarial fog-of-war review in a live match · **H6.4** the
+balance judgement itself — the throttle target ("roughly what a skilled human could do" versus
+"does not break the simulation", T5) and the resulting cost, power and cap tuning. **H6.4 is a
+decision, not a check**: an automated session must not settle it alone.
 
 **Security checkpoint 6**
 
-- [ ] Adversarial review: does telemetry reveal *anything* the player could not obtain by playing?
-      (T11)
-- [ ] Confirm the server flag cannot be overridden by a client
+- [ ] Confirm by code reading that the server flag cannot be overridden by a client
 - [ ] Confirm a compromised client cannot exceed the fairness envelope (T5)
 - [ ] Full re-read of `docs/SECURITY.md` against the finished system; no threat left **Open**
+
+Human, and required before this checkpoint passes: **H6.1**, **H6.2** and **H6.3**. The
+single-player-only telemetry restriction is lifted **only** after H6.3 passes — lifting it on a
+code reading alone would ship a wallhack (T11).
 
 ---
 
@@ -289,12 +338,25 @@ containing this.*
 
 Applies to every phase:
 
-1. **Each phase ends with a working build.** `./gradlew desktop:dist` on JDK 17, and the game runs.
+1. **Each phase ends with code that is meant to build and run.** `./gradlew desktop:dist` on
+   JDK 17, and the game runs. Where that cannot be confirmed automatically, it is queued in
+   `HUMAN_TODO.md` and the phase stays unmarked until it is — but development continues in the
+   meantime. Stalling the project on a build check does not make anything safer; ticking the box
+   to avoid stalling would.
 2. **Each phase ends with `docs/SECURITY.md` current.** Mitigations move to **Mitigated** with real
    file references; new capabilities get examined for new threats.
 3. **Small, reviewable increments** (`CLAUDE.md` §9). Land one coherent piece, get it reviewed,
-   then continue.
+   then continue. This matters more while builds are human-gated: a small change that breaks the
+   build is cheap to find, a large one is not.
 4. **Report honestly.** If a build or test fails or a step was skipped, say so with the actual
    output. A checkbox ticked without verification is worse than an unticked one, because it removes
    the reason to look.
-5. **A phase gate that fails blocks the next phase.** It does not become a follow-up task.
+5. **A phase gate that *fails* blocks the next phase.** It does not become a follow-up task. A
+   gate that is merely **pending** on a human check does not block development — see the section
+   at the top of this file. *Pending* and *failed* are different states and must not be collapsed
+   in either direction.
+6. **Verification provenance is recorded, not assumed.** A threat moves to **Mitigated** only when
+   the thing that confirmed it is named: a file reference for code, or a passed `H`-item for an
+   observation. "Reviewed and looks right" is not a mitigation record.
+7. **No personal data in any document** (`CLAUDE.md` §4.7) — including result notes, pasted
+   command output, and screenshots.
