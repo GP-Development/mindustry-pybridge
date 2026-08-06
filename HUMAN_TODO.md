@@ -78,17 +78,29 @@ roadmap phase, security checkpoint, or threat it discharges).
 ### H1 — Inert block (Phase 1)
 
 - [ ] **H1.1 Block appears and behaves in the build menu**
-      **Run:** launch, open the build menu, place the block, deconstruct it.
+      **Run:** launch, open the build menu, place the block, deconstruct it. Use a **custom or
+      sandbox game**, not the campaign: the block has no tech-tree node yet, which is a deliberate
+      deferral to H6.4 (`docs/ROADMAP.md` phase 1), so it is not researchable. Look under the
+      **Logic** category, named "Control Bridge".
       **Pass:** it appears with a real name and description (no raw bundle key such as
       `block.pybridge.name`), places, draws, and deconstructs.
       **Covers:** Phase 1.
+      **If it draws as the pink/white error texture,** the sprite atlas is stale rather than the
+      sprite missing. `desktop:run` and `desktop:dist` depend on `:tools:pack` **only when sprites
+      have never been packed** (`desktop/build.gradle:68`), so a checkout that was built before the
+      block sprite was added will not repack on its own. Run `./gradlew tools:pack` once, then
+      relaunch. This is worth knowing before concluding the sprite is broken.
 - [ ] **H1.2 Block survives a save/load round trip**
       **Run:** place it, save, quit to menu, reload the save.
       **Pass:** the block is still there, intact, with its state.
       **Covers:** Phase 1.
 - [ ] **H1.3 Logging is throttled, not per-tick**
       **Run:** watch the console for 60 seconds with the block placed.
-      **Pass:** a slow trickle of lines, not a 60 Hz flood.
+      **Pass:** a slow trickle of lines, not a 60 Hz flood. Expect roughly **one line every ten
+      seconds per placed block**, prefixed `pybridge:`, reporting the block's tile coordinates and
+      power efficiency. An **unpowered** block still logs, with efficiency `0.00` — that is
+      intentional (the timer uses `Time.delta`, not `edelta()`), so silence means the block is not
+      updating rather than that it is unpowered.
       **Covers:** Phase 1.
 - [ ] **H1.4 `./gradlew desktop:dist` still succeeds** — see §5; automatable once the build runs
       headlessly, human-only until then.

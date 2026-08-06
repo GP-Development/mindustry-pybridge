@@ -14,6 +14,8 @@ import mindustry.entities.pattern.*;
 import mindustry.game.*;
 import mindustry.gen.*;
 import mindustry.graphics.*;
+// FORK: pybridge — import for the fork-local control-bridge block registered at the end of load()
+import mindustry.pybridge.*;
 import mindustry.type.*;
 import mindustry.type.unit.*;
 import mindustry.world.*;
@@ -184,6 +186,11 @@ public class Blocks{
     interplanetaryAccelerator
 
     ;
+
+    // FORK: pybridge — the control-bridge block. Declared separately rather than appended to the
+    // list above so that upstream's declaration list is left byte-for-byte untouched, which keeps
+    // every future upstream merge free of a conflict here.
+    public static Block pybridge;
 
     public static void load(){
         //region environment
@@ -6984,5 +6991,24 @@ public class Blocks{
         }};
 
         //endregion
+
+        // FORK: pybridge — begin
+        // Registered last, in its own region, so it sits after everything upstream ever appends to
+        // this method. Upstream adds blocks in the middle of these regions; keeping ours at the end
+        // means a merge conflict here is very unlikely.
+        //
+        // Java note: the "{{ ... }}" is Mindustry's double-brace idiom, used throughout this file.
+        // The outer braces declare an anonymous subclass of PyBridgeBlock and the inner ones are an
+        // instance initialiser that runs at construction — so the body is simply "set these fields
+        // on the new object", the way a Python constructor keyword argument would.
+        pybridge = new PyBridgeBlock("pybridge"){{
+            // Build cost. PROVISIONAL, like the power draw in PyBridgeBlock: the bridge must not
+            // end up strictly better than an mlog processor, and that judgement belongs to a human
+            // (HUMAN_TODO.md H6.4). Set in the same ballpark as a logic processor for now.
+            requirements(Category.logic, with(Items.copper, 120, Items.lead, 80, Items.silicon, 80, Items.graphite, 40));
+
+            size = 1;
+        }};
+        // FORK: pybridge — end
     }
 }
