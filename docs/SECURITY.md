@@ -72,7 +72,7 @@ validated host field is still a host field.
 config.
 
 **Future sessions:** a request to "support connecting to a remote Python process" is a request to
-break this invariant. Refuse and escalate to the user.
+break this invariant. Refuse and escalate to the maintainer.
 
 ---
 
@@ -292,6 +292,11 @@ an exploitable race window in which another process can read the token.
 relitigated. Verification-then-fail-closed is the load-bearing part — an unverified `setReadable`
 call is exactly the kind of mitigation that appears to work and does not.
 
+**Moves to Mitigated only on H2.2 (POSIX), H2.3 (Windows) and H2.4 (fail-closed) — all three.**
+This threat is about what the filesystem actually did, so it is settled by looking at the created
+file's mode bits and ACL, not by reading the code that asked for them. A POSIX-only pass leaves
+Windows unverified, which is the exact failure this threat was raised to prevent.
+
 ---
 
 ## T9 — Unbounded allocation from a hostile length prefix
@@ -461,6 +466,37 @@ Each phase gate in `docs/ROADMAP.md` requires a pass over this file:
 4. The invariants in `CLAUDE.md` §4 still hold in the code as written, verified by reading it
    rather than by assuming.
 
+### Verification provenance — what may move a threat to **Mitigated**
+
+Some properties can be confirmed by reading code; others can only be confirmed by watching the
+software behave. The two are not interchangeable, and the status of a threat must say which one it
+rests on.
+
+- **Code-verifiable** — the mitigation is visible in the source (dispatch is a `switch`, the bind
+  address is a constant, no game state is touched off-thread). Record a **file reference**.
+- **Observation-only** — the mitigation is a claim about runtime behaviour (nothing is listening
+  in a default install, the file's mode bits really are `0600`, a hostile length prefix really
+  allocates nothing, a flood really does not burst after a stall). Record the passed **`H`-item**
+  from `HUMAN_TODO.md`.
+
+An observation-only threat **stays Planned until its `H`-item has actually been run.** This is
+the whole reason `HUMAN_TODO.md` exists: an automated session cannot perform these checks, so it
+must not be the thing that closes them. Threats currently in that category:
+
+| Threat | Confirmed by |
+|---|---|
+| T4 (throttle holds under flood) | H4.1, H4.8 |
+| T8 (owner-only connection file) | H2.2 **and** H2.3 **and** H2.4 — POSIX alone does not discharge it |
+| T9 (no allocation from a hostile length prefix) | H2.7, watching the heap |
+| T11 (no fog-of-war leak in multiplayer) | H3.5, then H6.3 before the restriction is lifted |
+| T12 (a stalled client cannot stall the game) | H3.2 |
+| T13 (token never printed) | code `grep` **and** H2.11 |
+| `CLAUDE.md` §4.3 (off by default) | H2.1 |
+
+Pending items here do not stop development of later phases (`docs/ROADMAP.md`, top section); they
+stop the *status* from advancing. A `H`-item that has been run and **failed** is a defect and a
+hard stop.
+
 ## Change log
 
 | Date | Change |
@@ -468,3 +504,5 @@ Each phase gate in `docs/ROADMAP.md` requires a pass over this file:
 | 2026-08-05 | Initial threat model. Seeded T1–T5 from design discussion; added T6–T16 during authoring. T8 and T11 flagged as unresolved and requiring a decision before their phase gates. |
 | 2026-08-05 | **Security checkpoint 0 passed**, after four fixes. (1) `ROADMAP` said a non-`hello` first frame is rejected with `unauthenticated` while `PROTOCOL` §4 said it is closed silently — resolved in favour of the silent close (an error reply is an oracle). (2) `unauthenticated` was therefore unreachable; retained and documented in `PROTOCOL` §8 as a fail-closed default case rather than deleted. (3) T1 and T2 had no owner phase despite both naming Phase 2 code that must uphold them — given "2 (verify)". (4) T5's exposure preceded its mitigation: Phase 4 granted control commands with no multiplayer gate while the server opt-in flag and throttle tuning land in Phase 6, so control is now refused in multiplayer with `not_permitted` from Phase 4, lifted only at the Phase 6 gate. Also noted: the port is user-configurable while the address is not, which is consistent with §4.1 only while the setting stays an integer port and never becomes a `host:port` string. |
 | 2026-08-05 | T8 resolved: Windows is a first-class target, so implement `AclFileAttributeView` on Windows and POSIX `0600` elsewhere, verify the result, and fail closed only if verification fails. T11 resolved for Phase 3: telemetry is single-player only until fog-of-war filtering is implemented; multiplayer remains open for Phase 6. |
+| 2026-08-06 | **No-personal-data policy adopted as a hard rule** (`CLAUDE.md` §4.7): no names, handles, contact details, biographical detail, machine identifiers, or account-bearing filesystem paths in any committed file — documentation, comments, commit messages, bundle strings, or pasted output. Exemptions are narrow and named: upstream repository/dependency identifiers required by the merge policy and the build, licence and copyright notices that GPLv3 requires be preserved, and git's own author metadata (which a documentation edit cannot reach and which must not be scrubbed by rewriting history). Rationale: the repository is a distribution channel — it is published under GPLv3, quoted into issue reports, and permanent once committed — and account names in paths and biographical detail are directly useful to an attacker. Applied retroactively: personal and biographical description was removed from `CLAUDE.md` §1 and §9 and replaced with the role-based statement that carries the same instruction ("assume the reviewer is not a Java specialist"). |
+| 2026-08-06 | **Human verification separated from automated verification** (`HUMAN_TODO.md`). All checks needing a real machine — JDK 17 builds, launching the game, per-OS file permissions, multiplayer, soak tests, balance judgement — moved out of `docs/ROADMAP.md` into a single queue that owns those checkboxes; the roadmap now references them by ID. Two rules added to keep this from weakening anything: **verification provenance** (a threat moves to **Mitigated** only against a file reference or a passed `H`-item, never against "reviewed and looks right" — see the table above), and the explicit distinction that a **pending** human item does not block development while a **failed** one is a hard stop. `GATE`-tagged items additionally keep the feature off by default and unadvertised until they pass. The net effect on security posture is a tightening, not a relaxation: several threats that could previously have been marked **Mitigated** on a code reading (T4, T8, T9, T12, T13, §4.3) now name an observation they must wait for. |

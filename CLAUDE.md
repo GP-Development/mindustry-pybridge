@@ -25,8 +25,8 @@ Therefore:
   our modifications.
 - New files we author are GPLv3 too. Do not add code copied from incompatible-licensed sources.
 
-**The user is new to Java** and self-taught in Python (~5 years). This shapes how you must work
-— see §9.
+**Assume the reviewer is not a Java specialist.** Reviewability is this project's main defence
+against mistakes, and it shapes how you must write code — see §9.
 
 ---
 
@@ -46,6 +46,27 @@ and upstream's README states other versions fail outright.
 Build output jars land in `desktop/build/libs/` (and `server/build/libs/` for the server).
 
 If `./gradlew` gives "Permission denied" on Linux/macOS, run `chmod +x ./gradlew` once.
+
+### Building without a display, and what to do when you cannot build at all
+
+An automated session usually has no display, so it can never *run* the game — but it should still
+be able to *compile*, which catches most breakage without waiting on a human. Two things have to
+be true for that:
+
+1. **JDK 17 must be present.** It is installable in a container
+   (`apt-get update && apt-get install -y openjdk-17-jdk-headless`, landing at
+   `/usr/lib/jvm/java-17-openjdk-amd64`); point Gradle at it with `JAVA_HOME`.
+2. **Dependencies must resolve.** The engine dependency (`Arc`) is published on `jitpack.io`. If
+   the environment's network policy blocks `jitpack.io` or `dl.google.com`, Gradle fails before
+   compiling anything, and no amount of local setup fixes it.
+
+**As of 2026-08-06 point 2 fails in the development container** (`403` at the proxy for both
+hosts, while `repo1.maven.org` resolves). See `HUMAN_TODO.md` §5 for the current status and for
+how to lift it.
+
+**When you cannot compile, development still continues** — it just cannot claim to have been
+verified. Write the code, keep changes small, and leave the build check in `HUMAN_TODO.md` for a
+human. Never report an unbuilt change as building (§9, honest reporting).
 
 ### `mindustry.gen` is generated — never hand-edit it
 
@@ -83,7 +104,7 @@ The `android/` and `ios/` directories are retained only to keep upstream merges 
 
 **Security outranks everything else in this project, including shipping speed.** These are rules
 a future session must **never** violate. They are not defaults to be weighed against convenience.
-If a request appears to require breaking one, **stop and raise it with the user** instead of
+If a request appears to require breaking one, **stop and raise it with the maintainer** instead of
 implementing around it.
 
 ### 4.1 Bind to loopback only
@@ -157,6 +178,59 @@ units, or entity groups. Not even "just a read" — the game is single-threaded 
 read can observe a torn or half-updated object.
 
 All game-state access is marshalled onto the main thread (see §5).
+
+### 4.7 No personal data in this repository
+
+**Hard policy: nothing committed to this repository identifies a real person.** This is not a
+style preference and it is not limited to the documentation — it covers every file that ships:
+Markdown, code comments, commit messages, bundle strings, protocol fields, test fixtures, log
+output, and sample data.
+
+**Never write:**
+
+- personal names, nicknames, initials, usernames, handles, or account IDs;
+- email addresses, phone numbers, postal or physical locations, employer, or job title;
+- biographical detail about anyone working on the project — experience level, years of practice,
+  what languages someone does or does not know, health, availability, or personal circumstances;
+- machine identifiers: hostnames, MAC addresses, non-loopback IP addresses of real machines,
+  serial numbers, licence keys;
+- filesystem paths containing an account name (`/home/<name>/…`, `C:\Users\<name>\…`);
+- screenshots, logs, `ls -l` output, stack traces, or config dumps that contain any of the above.
+
+**Write instead:**
+
+| Instead of | Write |
+|---|---|
+| a person's name | **the maintainer**, **the reviewer**, **the operator**, **a future session** |
+| "the user is new to Java" | "assume the reviewer is not a Java specialist" |
+| `/home/somebody/mindustry` | `<data-directory>`, `<repo-root>`, `<user-home>` |
+| a real machine's address | `127.0.0.1` |
+| `ls -l` pasted verbatim | the mode bits and owner *relationship* ("`0600`, owned by the running account") |
+
+**Narrow exemptions — these are the only ones.**
+
+1. **Upstream project identity and URLs.** `https://github.com/Anuken/Mindustry` and the
+   `com.github.Anuken.Arc` dependency coordinates stay. They are the upstream repository and the
+   dependency's Maven group, and removing them breaks the merge policy (§7) and the build.
+2. **Upstream content, including licence and copyright notices.** This policy governs what *we*
+   write. Do not go scrubbing names out of upstream files: GPLv3 requires copyright attribution to
+   be preserved, so stripping a copyright line is a licence violation rather than a privacy
+   improvement (§1), and editing upstream files gratuitously creates a merge conflict on every
+   future merge for no benefit (§7). If our own text needs to name the upstream project, name the
+   *project*.
+3. **Git commit metadata.** Author name and email are recorded by git itself and are outside a
+   documentation edit's reach. Do **not** rewrite history to scrub them; if it matters, raise it
+   with the maintainer and let them decide.
+
+**Applies retroactively.** If you find personal data in a file you are already touching, remove it
+in the same change. If you find it somewhere unrelated, say so rather than leaving it.
+
+*Why this is here and not in the style section:* documentation gets copied into issue reports,
+pasted into forums, and published with the source under GPLv3 — a repository is a distribution
+channel. Personal detail is also operationally useful to an attacker: an account name in a path is
+a hint about the machine, and biographical detail is social-engineering material. Removing it at
+the point of writing is the only version of this that works, because a repository's history keeps
+whatever was committed to it.
 
 ---
 
@@ -270,6 +344,15 @@ upstream files, the cheaper every future merge is.
 - `docs/PROTOCOL.md` — the wire protocol spec. Written before implementation so it can be
   reviewed on paper.
 - `docs/ROADMAP.md` — the phased plan, with checkboxes. Keep it current as work proceeds.
+- `HUMAN_TODO.md` — **everything that needs a human on a real machine**: builds, launching the
+  game, per-OS checks, multiplayer, balance judgement. It owns those checkboxes exclusively;
+  `ROADMAP.md` references them by ID rather than duplicating them, so two files can never
+  disagree about whether something was verified. A **pending** item there does not block writing
+  code — it blocks *claiming a phase is verified* and blocks moving a threat to **Mitigated**. A
+  **failed** item is a hard stop. Never tick a box there yourself: an automated session cannot
+  run those checks, which is the entire reason they live in that file.
+
+All four documents are covered by §4.7 — no personal data in any of them.
 
 ---
 
@@ -353,13 +436,14 @@ single tick. Our command throttle must have this same shape.
 
 ## 9. Code conventions and how to work
 
-The user is **new to Java and to large codebases**, and reviewing your work is their primary
-defense against your mistakes. Optimize for their ability to audit, not for elegance.
+**Human review is the primary defence against mistakes in this fork.** Assume the reviewer knows
+Python well, is not a Java specialist, and is not already familiar with a codebase this size.
+Optimize for their ability to audit, not for elegance.
 
 - **Explain Java idioms in comments.** Anything that has no direct Python equivalent — lambdas,
   `volatile`, generics, anonymous/inner classes, `final`, interfaces, the `{{ }}` double-brace
-  initializer Mindustry uses heavily in `Blocks.java` — gets a short plain-language comment. If
-  the user cannot read the code, they cannot review it.
+  initializer Mindustry uses heavily in `Blocks.java` — gets a short plain-language comment. Code
+  that cannot be read cannot be reviewed.
 - **Prefer boring, obvious code over clever code.** Explicit loops over stream chains. Named
   intermediate variables over dense one-liners. No cleverness that saves lines at the cost of
   legibility.
@@ -370,10 +454,12 @@ defense against your mistakes. Optimize for their ability to audit, not for eleg
   a restriction it mistakes for redundant.
 - **Ask before making architectural decisions** that are not already settled in this file.
 - **Vocalize security-relevant decisions** as they are made, and record them in
-  `docs/SECURITY.md`. If you notice a security implication the user has not considered, **raise it
-  immediately** rather than implementing around it.
-- **Every phase must end with the game still building and running.** The user must be able to stop
-  at any point and have something that works.
+  `docs/SECURITY.md`. If you notice a security implication the maintainer has not considered,
+  **raise it immediately** rather than implementing around it.
+- **Every phase must end with code that is meant to build and run.** The maintainer must be able
+  to stop at any point and have something that works. Where an automated session cannot confirm
+  that itself, the confirmation is queued in `HUMAN_TODO.md` rather than assumed.
+- **No personal data, ever** (§4.7). This includes result notes and pasted output.
 - Match surrounding upstream style in upstream files (Mindustry uses `}else{`, minimal spacing,
   4-space indent — see `CONTRIBUTING.md`).
 
@@ -382,3 +468,8 @@ defense against your mistakes. Optimize for their ability to audit, not for eleg
 If a build fails, a test fails, or a step was skipped, **say so plainly** with the actual output.
 Do not report a feature as working unless it has been run. Security work is worthless if its
 status is misreported.
+
+This has a specific consequence for `HUMAN_TODO.md`: an automated session **never ticks a box
+there**, and never marks a threat **Mitigated** in `docs/SECURITY.md` on the basis of an item that
+is still pending. "The code looks correct" is a claim about the code; those boxes record
+observations, and the two are not interchangeable.
